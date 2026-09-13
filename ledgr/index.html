@@ -1,0 +1,1282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Ledgr — Deposit &amp; Withdrawal Manager</title>
+
+<!-- ===== PWA: install-to-home-screen setup ===== -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#121B2D">
+<meta name="mobile-web-app-capable" content="yes">
+<!-- iOS home-screen support -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ledgr">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png">
+<link rel="apple-touch-icon" sizes="167x167" href="icons/icon-167.png">
+<link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --navy:#121B2D;
+  --navy-2:#1C2C48;
+  --navy-3:#25396040;
+  --gold:#C79A4B;
+  --gold-light:#E8C888;
+  --cream:#F6F1E5;
+  --card:#FFFFFF;
+  --ink:#1B2230;
+  --muted:#7A7264;
+  --line:#E8E1D1;
+  --green:#1E7A57;
+  --green-bg:#E4F1E9;
+  --red:#B8493A;
+  --red-bg:#F7E7E3;
+  --shadow-sm: 0 1px 2px rgba(18,27,45,0.06), 0 1px 1px rgba(18,27,45,0.04);
+  --shadow-md: 0 8px 24px rgba(18,27,45,0.14);
+  --shadow-lg: 0 24px 60px rgba(18,27,45,0.35);
+  --radius: 18px;
+}
+*{ box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+html,body{ height:100%; }
+body{
+  background: #0B1220;
+  background-image: radial-gradient(circle at 20% -10%, #1c2c48 0%, #0B1220 55%);
+  font-family:'Inter', sans-serif;
+  color: var(--ink);
+  display:flex; align-items:flex-start; justify-content:center;
+  min-height:100vh;
+  padding: 28px 12px;
+}
+::selection{ background: var(--gold-light); color: var(--navy); }
+:focus-visible{ outline: 2px solid var(--gold); outline-offset: 2px; }
+h1,h2,h3{ font-family:'Fraunces', serif; color: var(--navy); font-weight:600; }
+.mono{ font-family:'IBM Plex Mono', monospace; }
+button{ cursor:pointer; font-family:inherit; }
+.hidden{ display:none !important; }
+
+/* ============ DEVICE SHELL ============ */
+.device{
+  width:412px; max-width:100%;
+  background: linear-gradient(160deg,#1a1a1a,#000 60%);
+  border-radius:46px; padding:10px;
+  box-shadow: var(--shadow-lg);
+}
+.screen-viewport{
+  background: var(--cream);
+  border-radius:36px;
+  overflow:hidden;
+  height:872px;
+  max-height: calc(100vh - 40px);
+  display:flex; flex-direction:column;
+  position:relative;
+}
+.statusbar{
+  height:44px; flex-shrink:0; display:flex; align-items:center; justify-content:space-between;
+  padding: 0 26px; font-family:'IBM Plex Mono',monospace; font-size:0.72rem; color:var(--navy); font-weight:600;
+  background:transparent; z-index:5;
+}
+.statusbar .icons{ display:flex; gap:5px; align-items:center; }
+.statusbar svg{ display:block; }
+
+.page{ flex:1; overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrolling:touch; position:relative; }
+.page::-webkit-scrollbar{ width:0; }
+.page-pad{ padding: 4px 20px 100px; }
+
+@media (max-width:480px){
+  body{ padding:0; background:var(--cream); }
+  .device{ width:100%; border-radius:0; padding:0; box-shadow:none; background:none; }
+  .screen-viewport{ border-radius:0; height:100vh; max-height:100vh; }
+}
+
+/* ============ APP ICON ============ */
+.app-icon{
+  width:64px; height:64px; border-radius:16px;
+  background: linear-gradient(155deg, var(--navy-2), var(--navy) 70%);
+  display:flex; align-items:center; justify-content:center;
+  box-shadow: var(--shadow-md), inset 0 0 0 1px rgba(255,255,255,0.06);
+  position:relative; flex-shrink:0;
+}
+.app-icon::after{
+  content:''; position:absolute; inset:6px; border-radius:11px; border:1px solid rgba(199,154,75,0.35);
+}
+.app-icon span{ font-family:'Fraunces',serif; font-weight:600; font-size:1.7rem; color: var(--gold-light); }
+.app-icon.sm{ width:34px; height:34px; border-radius:9px; }
+.app-icon.sm::after{ inset:3px; border-radius:6px; }
+.app-icon.sm span{ font-size:0.95rem; }
+
+/* ============ APP BAR ============ */
+.appbar{
+  display:flex; align-items:center; gap:12px; padding: 6px 20px 18px; flex-shrink:0;
+}
+.appbar .back{
+  width:34px; height:34px; border-radius:10px; border:none; background: rgba(18,27,45,0.06);
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.appbar .titles{ flex:1; min-width:0; }
+.appbar .eyebrow{ font-family:'IBM Plex Mono',monospace; font-size:0.66rem; letter-spacing:1px; text-transform:uppercase; color:var(--muted); }
+.appbar h1{ font-size:1.3rem; line-height:1.15; }
+.appbar .action{ width:34px;height:34px; border-radius:10px; border:none; background:rgba(18,27,45,0.06); display:flex; align-items:center; justify-content:center;}
+
+/* ============ SPLASH / COVER ============ */
+.splash{ height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:0 34px; text-align:center; gap:6px;}
+.splash .app-icon{ width:88px; height:88px; border-radius:22px; margin-bottom:22px;}
+.splash .app-icon span{ font-size:2.3rem; }
+.splash h1{ font-size:1.9rem; letter-spacing:0.2px; }
+.splash p{ color:var(--muted); font-size:0.92rem; margin-top:8px; max-width:280px; line-height:1.5; }
+.role-stack{ width:100%; margin-top:38px; display:flex; flex-direction:column; gap:12px; }
+.role-card{
+  width:100%; text-align:left; border:none; border-radius:16px; padding:18px 18px;
+  display:flex; align-items:center; gap:14px; box-shadow: var(--shadow-sm); transition: transform .12s ease, box-shadow .12s ease;
+}
+.role-card:active{ transform: scale(0.98); }
+.role-card.host{ background: var(--navy); color:var(--cream); }
+.role-card.client{ background: var(--card); border:1px solid var(--line); color:var(--ink); }
+.role-card .ricon{ width:42px;height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.role-card.host .ricon{ background: rgba(199,154,75,0.18); }
+.role-card.client .ricon{ background: var(--green-bg); }
+.role-card .rtext{ flex:1; }
+.role-card .rtitle{ font-family:'Fraunces',serif; font-weight:600; font-size:1.05rem; }
+.role-card .rsub{ font-size:0.78rem; opacity:0.75; margin-top:2px; line-height:1.35; }
+.role-card.host .rsub{ color:#C9D2E3; }
+.role-card .rarrow{ opacity:0.5; flex-shrink:0; }
+
+/* ============ FORM / CARD ============ */
+.form-card{ background: var(--card); border:1px solid var(--line); border-radius: var(--radius); padding:22px 20px; box-shadow: var(--shadow-sm); }
+.field{ margin-bottom:16px; }
+.field:last-child{ margin-bottom:0; }
+label{ display:block; font-family:'IBM Plex Mono',monospace; font-size:0.7rem; letter-spacing:0.5px; text-transform:uppercase; color:var(--muted); margin-bottom:7px; }
+input, textarea{
+  width:100%; padding:12px 14px; border:1.5px solid var(--line); border-radius:12px;
+  background: #FCFAF4; font-family:'Inter',sans-serif; font-size:0.98rem; color: var(--ink);
+  transition: border-color .12s ease;
+}
+input:focus, textarea:focus{ border-color: var(--gold); background:#fff; }
+textarea{ font-family:'IBM Plex Mono',monospace; font-size:0.85rem; min-height:100px; resize:vertical; }
+.otp-input{ text-align:center; letter-spacing:9px; font-size:1.4rem; font-family:'IBM Plex Mono',monospace; font-weight:600;}
+
+.btn{
+  width:100%; padding:14px 20px; border:none; border-radius:13px; font-family:'Inter',sans-serif;
+  font-weight:600; font-size:0.94rem; letter-spacing:0.2px; display:flex; align-items:center; justify-content:center; gap:8px;
+  transition: transform .1s ease, opacity .12s ease;
+}
+.btn:active{ transform: scale(0.98); }
+.btn.primary{ background: var(--navy); color:var(--cream); }
+.btn.gold{ background: linear-gradient(120deg, var(--gold), #B8863A); color:#fff; }
+.btn.danger{ background: var(--red); color:#fff; }
+.btn.ghost{ background: transparent; color: var(--navy); border:1.5px solid var(--line); }
+.btn.text{ background:none; color:var(--muted); font-weight:500; padding:10px; width:auto; margin:12px auto 0; text-decoration:underline; }
+.btn:disabled{ opacity:0.4; }
+.err{ display:flex; align-items:center; gap:7px; color: var(--red); background:var(--red-bg); padding:9px 12px; border-radius:10px; font-size:0.82rem; margin-top:12px; }
+.msg{ display:flex; align-items:center; gap:7px; color: var(--green); background:var(--green-bg); padding:9px 12px; border-radius:10px; font-size:0.82rem; margin-top:12px; }
+.hint{ font-size:0.76rem; color:var(--muted); margin-top:8px; line-height:1.5; }
+
+/* ============ STATS / DASHBOARD ============ */
+.stat-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin: 4px 0 20px; }
+.stat-card{ background: var(--card); border:1px solid var(--line); border-radius:15px; padding:14px 15px; box-shadow:var(--shadow-sm);}
+.stat-card .slabel{ font-family:'IBM Plex Mono',monospace; font-size:0.62rem; letter-spacing:0.5px; text-transform:uppercase; color:var(--muted); display:flex; align-items:center; gap:5px;}
+.stat-card .sval{ font-family:'Fraunces',serif; font-size:1.35rem; margin-top:5px; color:var(--navy); }
+.stat-card.hero{ grid-column:1/-1; background: linear-gradient(135deg, var(--navy), var(--navy-2)); color:var(--cream); }
+.stat-card.hero .slabel{ color:#B9C2D6; }
+.stat-card.hero .sval{ color:var(--gold-light); font-size:1.9rem; }
+
+.section-title{ display:flex; align-items:center; justify-content:space-between; margin:22px 0 12px; }
+.section-title h3{ font-size:0.98rem; }
+.section-title .see-all{ font-family:'IBM Plex Mono',monospace; font-size:0.7rem; color:var(--muted); background:none; border:none; text-decoration:underline; }
+
+.search-bar{ display:flex; align-items:center; gap:9px; background:var(--card); border:1.5px solid var(--line); border-radius:13px; padding:10px 14px; margin-bottom:14px;}
+.search-bar input{ border:none; padding:0; background:none; flex:1; }
+.search-bar input:focus{ border:none; }
+.search-bar svg{ flex-shrink:0; color:var(--muted); }
+
+.client-card{
+  display:flex; align-items:center; gap:12px; background:var(--card); border:1px solid var(--line); border-radius:15px;
+  padding:13px 14px; margin-bottom:9px; box-shadow: var(--shadow-sm); transition: transform .1s ease;
+}
+.client-card:active{ transform: scale(0.98); }
+.avatar{ width:42px; height:42px; border-radius:12px; background: var(--navy); color:var(--gold-light); display:flex; align-items:center; justify-content:center; font-family:'Fraunces',serif; font-weight:600; font-size:1.05rem; flex-shrink:0;}
+.client-card .cbody{ flex:1; min-width:0; }
+.client-card .cname{ font-weight:600; font-size:0.95rem; }
+.client-card .cid{ font-family:'IBM Plex Mono',monospace; font-size:0.72rem; color:var(--muted); margin-top:1px;}
+.client-card .cright{ text-align:right; flex-shrink:0; }
+.client-card .cbal{ font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:0.9rem; color:var(--navy); }
+.pill{ font-family:'IBM Plex Mono',monospace; font-size:0.6rem; padding:3px 8px; border-radius:20px; letter-spacing:0.3px; margin-top:4px; display:inline-block; font-weight:600;}
+.pill.due{ background:var(--red-bg); color:var(--red); }
+.pill.paid{ background:var(--green-bg); color:var(--green); }
+
+.empty-state{ text-align:center; padding:40px 20px; color:var(--muted); }
+.empty-state svg{ margin-bottom:12px; opacity:0.5; }
+.empty-state p{ font-size:0.88rem; line-height:1.5; }
+
+/* ============ CLIENT DETAIL (HOST) ============ */
+.balance-hero{
+  background: linear-gradient(150deg, var(--navy-2), var(--navy) 75%); border-radius:20px; padding:22px 20px 20px;
+  color:var(--cream); margin-bottom:18px; box-shadow: var(--shadow-md); position:relative; overflow:hidden;
+}
+.balance-hero::after{ content:''; position:absolute; top:-40px; right:-40px; width:140px; height:140px; border-radius:50%; background:radial-gradient(circle, rgba(199,154,75,0.18), transparent 70%);}
+.balance-hero .bh-top{ display:flex; justify-content:space-between; align-items:flex-start; }
+.balance-hero .bh-id{ font-family:'IBM Plex Mono',monospace; font-size:0.72rem; color:var(--gold-light); letter-spacing:0.8px;}
+.balance-hero .bh-name{ font-size:1.25rem; color:var(--cream); margin-top:2px;}
+.balance-hero .bh-status{ font-family:'IBM Plex Mono',monospace; font-size:0.6rem; background:rgba(255,255,255,0.1); padding:4px 9px; border-radius:20px; letter-spacing:0.4px;}
+.balance-hero .bh-balance{ font-family:'Fraunces',serif; font-size:2.3rem; margin-top:16px; color:#fff;}
+.balance-hero .bh-phone{ font-family:'IBM Plex Mono',monospace; font-size:0.76rem; color:#B9C2D6; margin-top:4px;}
+
+.action-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:22px; }
+.action-btn{ background:var(--card); border:1px solid var(--line); border-radius:15px; padding:16px 12px; display:flex; flex-direction:column; align-items:center; gap:8px; box-shadow:var(--shadow-sm);}
+.action-btn .aicon{ width:38px;height:38px; border-radius:11px; display:flex; align-items:center; justify-content:center; }
+.action-btn.deposit .aicon{ background:var(--green-bg); color:var(--green); }
+.action-btn.withdraw .aicon{ background:var(--red-bg); color:var(--red); }
+.action-btn .alabel{ font-size:0.82rem; font-weight:600; }
+
+.tx-item{ display:flex; align-items:center; gap:12px; padding:11px 2px; border-bottom:1px solid var(--line); }
+.tx-item:last-child{ border-bottom:none; }
+.tx-icon{ width:36px;height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+.tx-item.deposit .tx-icon{ background:var(--green-bg); color:var(--green); }
+.tx-item.withdrawal .tx-icon{ background:var(--red-bg); color:var(--red); }
+.tx-item .tbody{ flex:1; min-width:0; }
+.tx-item .ttype{ font-weight:600; font-size:0.9rem; }
+.tx-item .tdate{ font-family:'IBM Plex Mono',monospace; font-size:0.7rem; color:var(--muted); margin-top:1px;}
+.tx-item .tright{ text-align:right; flex-shrink:0; }
+.tx-item .tamt{ font-family:'IBM Plex Mono',monospace; font-weight:700; font-size:0.9rem; }
+.tx-item.deposit .tamt{ color:var(--green); }
+.tx-item.withdrawal .tamt{ color:var(--red); }
+.tx-item .trun{ font-family:'IBM Plex Mono',monospace; font-size:0.66rem; color:var(--muted); margin-top:2px;}
+
+/* ============ BOTTOM NAV ============ */
+.bottom-nav{
+  position:absolute; left:0; right:0; bottom:0; height:78px; background: rgba(255,255,255,0.92); backdrop-filter: blur(14px);
+  border-top:1px solid var(--line); display:flex; align-items:center; padding-bottom:14px; z-index:20;
+}
+.bottom-nav button{ flex:1; background:none; border:none; display:flex; flex-direction:column; align-items:center; gap:4px; color:var(--muted); }
+.bottom-nav button.active{ color:var(--navy); }
+.bottom-nav button .navlabel{ font-family:'IBM Plex Mono',monospace; font-size:0.62rem; letter-spacing:0.3px; font-weight:600;}
+.bottom-nav button.active svg{ stroke: var(--gold); }
+
+/* ============ FAB ============ */
+.fab{
+  position:absolute; right:20px; bottom:94px; width:56px; height:56px; border-radius:50%;
+  background: linear-gradient(140deg, var(--gold), #B8863A); border:none; box-shadow: var(--shadow-md);
+  display:flex; align-items:center; justify-content:center; color:#fff; z-index:21; transition: transform .12s ease;
+}
+.fab:active{ transform: scale(0.93); }
+
+/* ============ SHEET (bottom sheet for modals) ============ */
+.overlay{ position:absolute; inset:0; background:rgba(18,27,45,0.5); display:flex; align-items:flex-end; z-index:50; }
+.sheet{
+  width:100%; background: var(--cream); border-radius:24px 24px 0 0; padding:10px 20px 28px;
+  box-shadow: 0 -8px 30px rgba(0,0,0,0.2); max-height:88%; overflow-y:auto; animation: sheetUp .22s ease;
+}
+@keyframes sheetUp{ from{ transform:translateY(24px); opacity:0.4; } to{ transform:translateY(0); opacity:1; } }
+.sheet-handle{ width:38px; height:4px; border-radius:3px; background:var(--line); margin:6px auto 16px; }
+.sheet h3{ font-size:1.15rem; margin-bottom:2px; }
+.sheet .sub{ color:var(--muted); font-size:0.85rem; margin-bottom:16px; }
+.sheet-actions{ display:flex; gap:10px; margin-top:18px; }
+.sheet-actions .btn{ flex:1; }
+
+.sms-banner{
+  background:#FBF3E2; border:1px dashed var(--gold); border-radius:12px; padding:13px 14px; margin:14px 0;
+  font-family:'IBM Plex Mono',monospace; font-size:0.76rem; text-align:left; color:#6B5525; line-height:1.55;
+}
+.sms-banner b{ letter-spacing:2px; font-size:1.05rem; color: var(--navy); }
+.stamp-result{
+  font-family:'IBM Plex Mono',monospace; font-weight:700; letter-spacing:2px; font-size:1rem; text-align:center;
+  border:2.5px solid; border-radius:10px; padding:11px; margin-top:14px; transform:rotate(-1.5deg);
+}
+.stamp-result.ok{ color: var(--green); border-color: var(--green); background: var(--green-bg); }
+.stamp-result.bad{ color: var(--red); border-color: var(--red); background: var(--red-bg); }
+
+/* ============ ACTIVITY / SETTINGS ============ */
+.audit-item{ display:flex; gap:12px; padding:12px 2px; border-bottom:1px solid var(--line); }
+.audit-item .aicon2{ width:32px;height:32px; border-radius:9px; background:var(--card); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; flex-shrink:0; color:var(--navy);}
+.audit-item .abody{ flex:1; min-width:0; }
+.audit-item .aaction{ font-size:0.85rem; font-weight:600; }
+.audit-item .adetail{ font-size:0.8rem; color:var(--muted); margin-top:1px; }
+.audit-item .ats{ font-family:'IBM Plex Mono',monospace; font-size:0.65rem; color:var(--muted); margin-top:3px;}
+
+.module-list{ display:flex; flex-direction:column; gap:9px; margin-bottom:20px; }
+.module-row{ display:flex; align-items:center; gap:12px; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:13px 14px;}
+.module-row .micon{ width:36px;height:36px; border-radius:10px; background:var(--cream); display:flex; align-items:center; justify-content:center; color:var(--navy); flex-shrink:0;}
+.module-row .mtext{ flex:1; }
+.module-row .mtitle{ font-weight:600; font-size:0.88rem;}
+.module-row .msub{ font-size:0.74rem; color:var(--muted); margin-top:1px;}
+.module-row .mstatus{ font-family:'IBM Plex Mono',monospace; font-size:0.62rem; color:var(--green); background:var(--green-bg); padding:3px 8px; border-radius:20px; font-weight:600;}
+
+.profile-card{ background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px; margin-bottom:16px;}
+.profile-row{ display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--line); font-size:0.86rem;}
+.profile-row:last-child{ border-bottom:none; }
+.profile-row .plabel{ color:var(--muted); }
+.profile-row .pval{ font-family:'IBM Plex Mono',monospace; font-weight:600; }
+.note-card{ background:#FBF3E2; border:1px dashed var(--gold); border-radius:14px; padding:14px 16px; font-size:0.8rem; color:#6B5525; line-height:1.55; margin-bottom:16px;}
+
+.filter-chips{ display:flex; gap:8px; margin-bottom:14px; }
+.chip{ font-family:'IBM Plex Mono',monospace; font-size:0.72rem; padding:7px 13px; border-radius:20px; border:1.5px solid var(--line); background:var(--card); color:var(--muted); font-weight:600;}
+.chip.active{ background:var(--navy); color:var(--cream); border-color:var(--navy); }
+</style>
+</head>
+<body>
+<div class="device"><div class="screen-viewport">
+
+<div class="statusbar">
+  <span id="clock">9:41</span>
+  <div class="icons">
+    <svg width="16" height="10" viewBox="0 0 16 10" fill="none"><rect x="0" y="6" width="3" height="4" rx="0.5" fill="currentColor"/><rect x="4.5" y="4" width="3" height="6" rx="0.5" fill="currentColor"/><rect x="9" y="2" width="3" height="8" rx="0.5" fill="currentColor"/><rect x="13.5" y="0" width="2.5" height="10" rx="0.5" fill="currentColor" opacity="0.35"/></svg>
+    <svg width="18" height="11" viewBox="0 0 18 11" fill="none"><rect x="0.5" y="0.5" width="15" height="10" rx="2.5" stroke="currentColor"/><rect x="2" y="2" width="12" height="7" rx="1.3" fill="currentColor"/><rect x="16.5" y="3.5" width="1.5" height="4" rx="0.7" fill="currentColor"/></svg>
+  </div>
+</div>
+
+<div class="page" id="page-root">
+
+  <!-- ============ COVER / SPLASH ============ -->
+  <div id="screen-cover">
+    <div class="splash">
+      <div class="app-icon"><span>L</span></div>
+      <h1>Ledgr</h1>
+      <p>A private deposit register. One host, full control. Every client sees their own passbook — nothing more.</p>
+      <button id="install-app-btn" class="hidden" onclick="promptInstall()" style="margin-top:18px; display:flex; align-items:center; gap:8px; background:rgba(199,154,75,0.14); border:1px solid var(--gold); color:var(--navy); padding:9px 16px; border-radius:20px; font-family:'IBM Plex Mono',monospace; font-size:0.72rem; font-weight:600; letter-spacing:0.3px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v11M7 12l5 5 5-5"/><path d="M5 19h14"/></svg>
+        INSTALL LEDGR
+      </button>
+      <div class="role-stack">
+        <button class="role-card host" onclick="goTo('host-login')">
+          <div class="ricon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E8C888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 3 7v6c0 5 4 8.5 9 9 5-.5 9-4 9-9V7l-9-5Z"/><path d="m9 12 2 2 4-4"/></svg>
+          </div>
+          <div class="rtext"><div class="rtitle">Host Console</div><div class="rsub">Manage clients, deposits &amp; withdrawals</div></div>
+          <svg class="rarrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E8C888" stroke-width="2" stroke-linecap="round"><path d="m9 6 6 6-6 6"/></svg>
+        </button>
+        <button class="role-card client" onclick="goTo('client-login')">
+          <div class="ricon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1E7A57" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 18h6"/></svg>
+          </div>
+          <div class="rtext"><div class="rtitle">My Passbook</div><div class="rsub">View your balance &amp; statement</div></div>
+          <svg class="rarrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1B2230" stroke-width="2" stroke-linecap="round"><path d="m9 6 6 6-6 6"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ HOST LOGIN ============ -->
+  <div id="screen-host-login" class="hidden">
+    <div class="appbar">
+      <button class="back" onclick="goTo('cover')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1B2230" stroke-width="2" stroke-linecap="round"><path d="m15 18-6-6 6-6"/></svg></button>
+      <div class="titles"><div class="eyebrow">Host Console</div><h1 id="host-login-title">Host Login</h1></div>
+    </div>
+    <div class="page-pad">
+      <p class="hint" id="host-login-sub" style="margin-bottom:16px;">Enter your ledger password.</p>
+
+      <!-- Shown only the very first time — creates the one permanent host account -->
+      <div id="host-setup-fields" class="hidden">
+        <div style="display:flex; justify-content:center; margin-bottom:18px;">
+          <label for="host-setup-photo-input" style="cursor:pointer; position:relative;">
+            <div class="avatar" id="host-setup-avatar-preview" style="width:76px;height:76px;border-radius:20px;font-size:1.6rem;">L</div>
+            <div style="position:absolute; bottom:-4px; right:-4px; background:var(--gold); border-radius:50%; width:26px; height:26px; display:flex; align-items:center; justify-content:center; border:2px solid var(--cream);">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg>
+            </div>
+          </label>
+          <input type="file" id="host-setup-photo-input" accept="image/*" class="hidden" onchange="onPickPhoto(this,'host-setup-avatar-preview')">
+        </div>
+        <div class="form-card" style="margin-bottom:14px;">
+          <div class="field"><label>Your Name</label><input type="text" id="host-setup-name" placeholder="e.g. Amarjeet Singh"></div>
+          <div class="field"><label>Your Phone Number</label><input type="text" id="host-setup-phone" placeholder="10-digit mobile number"></div>
+        </div>
+      </div>
+
+      <div class="form-card">
+        <div class="field"><label>Password</label><input type="password" id="host-pw-input" placeholder="••••••••"></div>
+        <div class="field hidden" id="host-setup-confirm-field"><label>Re-enter Password</label><input type="password" id="host-pw-confirm-input" placeholder="••••••••"></div>
+      </div>
+      <div id="host-login-err" class="err hidden"></div>
+      <button class="btn primary" style="margin-top:18px;" id="host-login-submit-btn" onclick="submitHostLogin()">Enter Console</button>
+    </div>
+  </div>
+
+  <!-- ============ CLIENT LOGIN ============ -->
+  <div id="screen-client-login" class="hidden">
+    <div class="appbar">
+      <button class="back" onclick="goTo('cover')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1B2230" stroke-width="2" stroke-linecap="round"><path d="m15 18-6-6 6-6"/></svg></button>
+      <div class="titles"><div class="eyebrow">My Passbook</div><h1>Find Your Account</h1></div>
+    </div>
+    <div class="page-pad">
+      <div class="search-bar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" id="client-search-input" placeholder="Name, ID, or phone number" oninput="renderClientLoginResults()">
+      </div>
+      <div id="client-login-results"></div>
+    </div>
+  </div>
+
+  <!-- ============ CLIENT PIN CONFIRM ============ -->
+  <div id="screen-client-pin" class="hidden">
+    <div class="appbar">
+      <button class="back" onclick="goTo('client-login')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1B2230" stroke-width="2" stroke-linecap="round"><path d="m15 18-6-6 6-6"/></svg></button>
+      <div class="titles"><div class="eyebrow">Verify</div><h1>Confirm It's You</h1></div>
+    </div>
+    <div class="page-pad">
+      <p class="hint" id="client-pin-sub" style="margin-bottom:16px;"></p>
+      <div class="form-card">
+        <div class="field"><label>Last 4 digits of your phone number</label><input type="text" id="client-pin-input" maxlength="4" placeholder="1234" class="otp-input" style="letter-spacing:6px; font-size:1.15rem;"></div>
+      </div>
+      <div id="client-pin-err" class="err hidden"></div>
+      <button class="btn primary" style="margin-top:18px;" onclick="submitClientPin()">View My Passbook</button>
+    </div>
+  </div>
+
+  <!-- ============ HOST DASHBOARD (shell w/ tabs) ============ -->
+  <div id="screen-host-dashboard" class="hidden">
+    <div class="appbar">
+      <div class="app-icon sm"><span>L</span></div>
+      <div class="titles"><div class="eyebrow">Host Console</div><h1 id="host-tab-title">Overview</h1></div>
+    </div>
+    <div class="page-pad" style="padding-bottom:120px;">
+
+      <div id="host-panel-home">
+        <div class="stat-grid">
+          <div class="stat-card hero"><div class="slabel">Total Held Across All Clients</div><div class="sval" id="stat-total">₹0</div></div>
+          <div class="stat-card"><div class="slabel">Clients</div><div class="sval" id="stat-clients">0</div></div>
+          <div class="stat-card"><div class="slabel">Due This Month</div><div class="sval" id="stat-due">0</div></div>
+        </div>
+        <div class="search-bar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="text" id="host-search" placeholder="Search clients…" oninput="renderClientList()">
+        </div>
+        <div class="section-title"><h3>Clients</h3></div>
+        <div id="client-list"></div>
+      </div>
+
+      <div id="host-panel-activity" class="hidden">
+        <div class="section-title"><h3>Audit Log</h3></div>
+        <div id="audit-list"></div>
+      </div>
+
+      <div id="host-panel-settings" class="hidden">
+        <div class="section-title"><h3>Your Profile</h3></div>
+        <div class="profile-card" style="display:flex; align-items:center; gap:14px;">
+          <div class="avatar" id="host-settings-avatar" style="width:54px;height:54px;border-radius:15px; flex-shrink:0;"></div>
+          <div style="flex:1; min-width:0;">
+            <div style="font-weight:600; font-size:0.95rem;" id="host-settings-name"></div>
+            <div class="mono" style="font-size:0.78rem; color:var(--muted); margin-top:1px;" id="host-settings-phone"></div>
+          </div>
+          <button class="btn ghost" style="width:auto; padding:9px 14px; font-size:0.8rem;" onclick="openHostProfileSheet()">Edit</button>
+        </div>
+        <div class="section-title"><h3>Modules</h3></div>
+        <div class="module-list" id="module-list"></div>
+        <div class="section-title"><h3>Session</h3></div>
+        <div class="profile-card">
+          <div class="profile-row"><span class="plabel">Signed in as</span><span class="pval">HOST</span></div>
+          <div class="profile-row"><span class="plabel">Interest policy</span><span class="pval">None</span></div>
+        </div>
+        <button class="btn ghost" style="margin-bottom:10px;" onclick="openChangePasswordSheet()">Change Password</button>
+        <button class="btn ghost" onclick="logout()">Log Out</button>
+      </div>
+
+    </div>
+
+    <button class="fab" onclick="openFabSheet()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+
+    <div class="bottom-nav">
+      <button class="active" data-tab="home" onclick="switchHostTab('home')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7"/><path d="M5 9v11h14V9"/></svg>
+        <span class="navlabel">HOME</span>
+      </button>
+      <button data-tab="activity" onclick="switchHostTab('activity')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+        <span class="navlabel">ACTIVITY</span>
+      </button>
+      <button data-tab="settings" onclick="switchHostTab('settings')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+        <span class="navlabel">SETTINGS</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ============ ADD CLIENT ============ -->
+  <div id="screen-add-client" class="hidden">
+    <div class="appbar">
+      <button class="back" onclick="goTo('host-dashboard')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1B2230" stroke-width="2" stroke-linecap="round"><path d="m15 18-6-6 6-6"/></svg></button>
+      <div class="titles"><div class="eyebrow">New Record</div><h1>Add Client</h1></div>
+    </div>
+    <div class="page-pad">
+      <div class="form-card">
+        <div style="display:flex; justify-content:center; margin-bottom:6px;">
+          <label for="new-client-photo-input" style="cursor:pointer; position:relative;">
+            <div class="avatar" id="new-client-avatar-preview" style="width:64px;height:64px;border-radius:18px;font-size:1.3rem;">+</div>
+            <div style="position:absolute; bottom:-4px; right:-4px; background:var(--gold); border-radius:50%; width:22px; height:22px; display:flex; align-items:center; justify-content:center; border:2px solid var(--cream);">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg>
+            </div>
+          </label>
+          <input type="file" id="new-client-photo-input" accept="image/*" class="hidden" onchange="onPickPhoto(this,'new-client-avatar-preview')">
+        </div>
+        <div class="field"><label>Full Name</label><input type="text" id="new-client-name" placeholder="e.g. Ramesh Kumar"></div>
+        <div class="field"><label>Phone Number</label><input type="text" id="new-client-phone" placeholder="10-digit mobile number"></div>
+        <div class="field"><label>Monthly Target (optional)</label><input type="text" id="new-client-target" placeholder="e.g. 1000"></div>
+      </div>
+      <div id="add-client-err" class="err hidden"></div>
+      <button class="btn primary" style="margin-top:18px;" onclick="submitAddClient()">Add Client</button>
+    </div>
+  </div>
+
+  <!-- ============ BULK ADD ============ -->
+  <div id="screen-bulk-add" class="hidden">
+    <div class="appbar">
+      <button class="back" onclick="goTo('host-dashboard')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1B2230" stroke-width="2" stroke-linecap="round"><path d="m15 18-6-6 6-6"/></svg></button>
+      <div class="titles"><div class="eyebrow">Migrate Paper Records</div><h1>Bulk Add</h1></div>
+    </div>
+    <div class="page-pad">
+      <div class="form-card">
+        <div class="field">
+          <label>Name, Phone — one per line</label>
+          <textarea id="bulk-add-text" placeholder="Ramesh Kumar, 9814011111&#10;Suman Devi, 9814022222"></textarea>
+        </div>
+      </div>
+      <div class="hint">Each line becomes one client with an auto-generated ID. Paste your existing register here to migrate it in one pass.</div>
+      <div id="bulk-add-err" class="err hidden"></div>
+      <div id="bulk-add-msg" class="msg hidden"></div>
+      <button class="btn primary" style="margin-top:18px;" onclick="submitBulkAdd()">Add All</button>
+    </div>
+  </div>
+
+  <!-- ============ CLIENT DETAIL (HOST VIEW) ============ -->
+  <div id="screen-client-detail" class="hidden">
+    <div class="appbar">
+      <button class="back" onclick="goTo('host-dashboard')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1B2230" stroke-width="2" stroke-linecap="round"><path d="m15 18-6-6 6-6"/></svg></button>
+      <div class="titles"><div class="eyebrow">Client Account</div><h1>Details</h1></div>
+    </div>
+    <div class="page-pad">
+      <div class="balance-hero">
+        <div class="bh-top">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <label for="detail-photo-input" style="cursor:pointer; position:relative;">
+              <div class="avatar" id="detail-avatar" style="width:48px;height:48px;border-radius:13px; background:rgba(255,255,255,0.12); color:var(--gold-light);"></div>
+              <div style="position:absolute; bottom:-3px; right:-3px; background:var(--gold); border-radius:50%; width:18px; height:18px; display:flex; align-items:center; justify-content:center; border:1.5px solid var(--navy);">
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg>
+              </div>
+            </label>
+            <input type="file" id="detail-photo-input" accept="image/*" class="hidden" onchange="onClientPhotoPicked(this)">
+            <div><div class="bh-id" id="detail-id"></div><div class="bh-name" id="detail-name"></div></div>
+          </div>
+          <div class="bh-status">ACTIVE</div>
+        </div>
+        <div class="bh-balance" id="detail-balance"></div>
+        <div class="bh-phone" id="detail-phone"></div>
+      </div>
+
+      <div class="action-grid">
+        <button class="action-btn deposit" onclick="openDeposit()">
+          <div class="aicon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg></div>
+          <div class="alabel">Record Deposit</div>
+        </button>
+        <button class="action-btn withdraw" onclick="openWithdraw()">
+          <div class="aicon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div>
+          <div class="alabel">Process Withdrawal</div>
+        </button>
+      </div>
+
+      <div class="section-title"><h3>Transaction History</h3></div>
+      <div id="detail-tx-list"></div>
+    </div>
+  </div>
+
+  <!-- ============ CLIENT VIEW (shell w/ tabs) ============ -->
+  <div id="screen-client-view" class="hidden">
+    <div class="appbar">
+      <div class="app-icon sm"><span>L</span></div>
+      <div class="titles"><div class="eyebrow">My Passbook</div><h1 id="client-tab-title">Home</h1></div>
+    </div>
+    <div class="page-pad" style="padding-bottom:120px;">
+
+      <div id="client-panel-home">
+        <div class="balance-hero">
+          <div class="bh-top"><div><div class="bh-id" id="cv-id"></div><div class="bh-name" id="cv-name"></div></div><div class="bh-status">ACTIVE</div></div>
+          <div class="bh-balance" id="cv-balance"></div>
+          <div class="bh-phone" id="cv-phone"></div>
+        </div>
+        <div class="note-card">Your balance always equals total deposits minus total withdrawals — no interest is ever added or deducted.</div>
+        <div class="section-title"><h3>Recent Activity</h3><button class="see-all" onclick="switchClientTab('statement')">See all →</button></div>
+        <div id="cv-recent-list"></div>
+      </div>
+
+      <div id="client-panel-statement" class="hidden">
+        <div class="filter-chips">
+          <button class="chip active" data-range="all" onclick="setStatementFilter('all')">All Time</button>
+          <button class="chip" data-range="month" onclick="setStatementFilter('month')">This Month</button>
+        </div>
+        <div id="cv-tx-list"></div>
+      </div>
+
+      <div id="client-panel-profile" class="hidden">
+        <div style="display:flex; justify-content:center; margin:6px 0 18px;">
+          <label for="pf-photo-input" style="cursor:pointer; position:relative;">
+            <div class="avatar" id="pf-avatar" style="width:84px;height:84px;border-radius:22px;font-size:1.7rem;"></div>
+            <div style="position:absolute; bottom:-4px; right:-4px; background:var(--gold); border-radius:50%; width:26px; height:26px; display:flex; align-items:center; justify-content:center; border:2px solid var(--cream);">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg>
+            </div>
+          </label>
+          <input type="file" id="pf-photo-input" accept="image/*" class="hidden" onchange="onOwnPhotoPicked(this)">
+        </div>
+        <div class="profile-card">
+          <div class="profile-row"><span class="plabel">Name</span><span class="pval" id="pf-name"></span></div>
+          <div class="profile-row"><span class="plabel">Client ID</span><span class="pval" id="pf-id"></span></div>
+          <div class="profile-row"><span class="plabel">Phone</span><span class="pval" id="pf-phone"></span></div>
+          <div class="profile-row"><span class="plabel">Member Since</span><span class="pval" id="pf-since"></span></div>
+        </div>
+        <div class="note-card">Deposits and withdrawals on this account are made only by your host, in person. Withdrawals require an OTP sent to your phone before they're approved.</div>
+        <button class="btn ghost" onclick="logout()">Log Out</button>
+      </div>
+
+    </div>
+
+    <div class="bottom-nav">
+      <button class="active" data-tab="home" onclick="switchClientTab('home')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7"/><path d="M5 9v11h14V9"/></svg>
+        <span class="navlabel">HOME</span>
+      </button>
+      <button data-tab="statement" onclick="switchClientTab('statement')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 7h6M9 12h6M9 17h3"/></svg>
+        <span class="navlabel">STATEMENT</span>
+      </button>
+      <button data-tab="profile" onclick="switchClientTab('profile')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+        <span class="navlabel">PROFILE</span>
+      </button>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+  <!-- ============ HOST PROFILE EDIT SHEET ============ -->
+  <div id="modal-host-profile" class="overlay hidden" onclick="if(event.target===this) closeModal('modal-host-profile')">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <h3>Edit Your Profile</h3>
+      <p class="sub">Visible only to you, in the Host Console.</p>
+      <div style="display:flex; justify-content:center; margin-bottom:14px;">
+        <label for="hp-photo-input" style="cursor:pointer; position:relative;">
+          <div class="avatar" id="hp-avatar-preview" style="width:76px;height:76px;border-radius:20px;font-size:1.6rem;"></div>
+          <div style="position:absolute; bottom:-4px; right:-4px; background:var(--gold); border-radius:50%; width:26px; height:26px; display:flex; align-items:center; justify-content:center; border:2px solid var(--cream);">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg>
+          </div>
+        </label>
+        <input type="file" id="hp-photo-input" accept="image/*" class="hidden" onchange="onPickPhoto(this,'hp-avatar-preview')">
+      </div>
+      <div class="form-card">
+        <div class="field"><label>Name</label><input type="text" id="hp-name-input"></div>
+        <div class="field"><label>Phone</label><input type="text" id="hp-phone-input"></div>
+      </div>
+      <div id="hp-err" class="err hidden"></div>
+      <div class="sheet-actions">
+        <button class="btn ghost" onclick="closeModal('modal-host-profile')">Cancel</button>
+        <button class="btn gold" onclick="submitHostProfile()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ CHANGE PASSWORD SHEET ============ -->
+  <div id="modal-change-password" class="overlay hidden" onclick="if(event.target===this) closeModal('modal-change-password')">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <h3>Change Password</h3>
+      <p class="sub">You'll use the new password next time you log in.</p>
+      <div class="form-card">
+        <div class="field"><label>Current Password</label><input type="password" id="cp-old-input"></div>
+        <div class="field"><label>New Password</label><input type="password" id="cp-new-input"></div>
+        <div class="field"><label>Re-enter New Password</label><input type="password" id="cp-confirm-input"></div>
+      </div>
+      <div id="cp-err" class="err hidden"></div>
+      <div id="cp-msg" class="msg hidden"></div>
+      <div class="sheet-actions">
+        <button class="btn ghost" onclick="closeModal('modal-change-password')">Cancel</button>
+        <button class="btn gold" onclick="submitChangePassword()">Update</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ FAB ACTION SHEET ============ -->
+  <div id="modal-fab" class="overlay hidden" onclick="if(event.target===this) closeModal('modal-fab')">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <h3>Add Clients</h3>
+      <p class="sub">Choose how you'd like to add to the register.</p>
+      <button class="btn primary" style="margin-bottom:10px;" onclick="closeModal('modal-fab'); openAddClient();">+ Add One Client</button>
+      <button class="btn ghost" onclick="closeModal('modal-fab'); openBulkAdd();">Bulk Add from Paper Records</button>
+    </div>
+  </div>
+
+  <!-- ============ DEPOSIT SHEET ============ -->
+  <div id="modal-deposit" class="overlay hidden" onclick="if(event.target===this) closeModal('modal-deposit')">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <h3>Record Deposit</h3>
+      <p class="sub" id="deposit-client-name"></p>
+      <div class="form-card">
+        <div class="field"><label>Amount (₹)</label><input type="text" id="deposit-amount" placeholder="e.g. 1000"></div>
+        <div class="field"><label>Date</label><input type="date" id="deposit-date"></div>
+        <div class="field"><label>Note (optional)</label><input type="text" id="deposit-note" placeholder="e.g. September installment"></div>
+      </div>
+      <div id="deposit-err" class="err hidden"></div>
+      <div class="sheet-actions">
+        <button class="btn ghost" onclick="closeModal('modal-deposit')">Cancel</button>
+        <button class="btn gold" onclick="submitDeposit()">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ WITHDRAW SHEET ============ -->
+  <div id="modal-withdraw" class="overlay hidden">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div id="withdraw-step-amount">
+        <h3>Process Withdrawal</h3>
+        <p class="sub" id="withdraw-client-name"></p>
+        <div class="form-card"><div class="field"><label>Amount (₹)</label><input type="text" id="withdraw-amount" placeholder="e.g. 500"></div></div>
+        <div id="withdraw-err" class="err hidden"></div>
+        <div class="sheet-actions">
+          <button class="btn ghost" onclick="closeModal('modal-withdraw')">Cancel</button>
+          <button class="btn danger" onclick="sendOtp()">Send OTP</button>
+        </div>
+      </div>
+      <div id="withdraw-step-otp" class="hidden">
+        <h3 style="text-align:center;">Enter OTP</h3>
+        <div style="text-align:center; font-family:'Fraunces',serif; font-size:1.7rem; color:var(--navy); margin-top:4px;" id="withdraw-otp-amount"></div>
+        <div class="sms-banner" id="withdraw-sms-banner"></div>
+        <div class="field"><label style="text-align:center; display:block;">Code from client's phone</label><input type="text" class="otp-input" id="withdraw-otp-input" maxlength="6" placeholder="000000"></div>
+        <div id="withdraw-otp-timer" class="hint" style="text-align:center;"></div>
+        <div id="withdraw-otp-result"></div>
+        <div id="withdraw-otp-actions" class="sheet-actions">
+          <button class="btn ghost" onclick="closeModal('modal-withdraw')">Cancel</button>
+          <button class="btn danger" onclick="verifyOtp()">Approve</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div></div><!-- /screen-viewport /device -->
+
+<script>
+/* ================= STATE ================= */
+let session = { role:null, clientId:null };
+let HOST_EXISTS = false;
+let HOST_INFO = {};
+let selectedDetailClientId = null;
+let pendingLoginClientId = null;
+let activeHostTab = 'home';
+let activeClientTab = 'home';
+let statementFilter = 'all';
+let otpTimerHandle = null;
+let pendingExpiresAt = null;
+let hostSearchTimer = null;
+let clientSearchTimer = null;
+
+/* ================= API HELPER ================= */
+async function api(path, method, body){
+  const opts = { method: method || 'GET', headers: {} };
+  if(body !== undefined){ opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+  const res = await fetch('/api' + path, opts);
+  let data = null;
+  try{ data = await res.json(); }catch(e){ /* no body */ }
+  if(!res.ok){ const err = new Error((data && data.error) || 'Something went wrong.'); err.status = res.status; err.data = data; throw err; }
+  return data;
+}
+
+/* ================= FORMAT HELPERS ================= */
+function fmtMoney(n){ return '₹' + Number(n).toLocaleString('en-IN'); }
+function fmtDate(d){ return new Date(d).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'}); }
+function fmtDateTime(iso){ const dt = new Date(iso); return dt.toLocaleDateString('en-IN',{day:'2-digit',month:'short'}) + ' · ' + dt.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'}); }
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+function initials(name){ return (name||'').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase(); }
+function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, m=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function avatarBg(photo){ return photo ? `background-image:url(${photo});background-size:cover;background-position:center;` : ''; }
+function emptyStateHtml(msg){ return `<div class="empty-state"><p>${msg}</p></div>`; }
+
+const ICON_DEPOSIT = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>';
+const ICON_WITHDRAW = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';
+const ICON_LOG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>';
+const ICON_USER = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>';
+
+/* ================= PHOTO PICKER (compress client-side before upload) ================= */
+function compressImage(file){
+  return new Promise((resolve)=>{
+    const reader = new FileReader();
+    reader.onload = (e)=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const maxDim = 300;
+        let w = img.width, h = img.height;
+        if(w > h){ if(w > maxDim){ h *= maxDim/w; w = maxDim; } } else { if(h > maxDim){ w *= maxDim/h; h = maxDim; } }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+function onPickPhoto(input, previewId){
+  const file = input.files[0]; if(!file) return;
+  compressImage(file).then((dataUrl)=>{
+    const el = document.getElementById(previewId);
+    el.style.backgroundImage = `url(${dataUrl})`;
+    el.style.backgroundSize = 'cover'; el.style.backgroundPosition = 'center';
+    el.textContent = '';
+    el.dataset.photo = dataUrl;
+  });
+}
+function getPickedPhoto(previewId){ const el = document.getElementById(previewId); return el.dataset.photo || null; }
+function resetAvatarPreview(id, fallback){ const el = document.getElementById(id); if(!el) return; el.style.backgroundImage=''; el.textContent = fallback; delete el.dataset.photo; }
+function setAvatarDisplay(el, photo, name){
+  el.style.backgroundImage = photo ? `url(${photo})` : '';
+  el.style.backgroundSize = 'cover'; el.style.backgroundPosition = 'center';
+  el.textContent = photo ? '' : initials(name);
+}
+
+/* ================= NAVIGATION ================= */
+const screens = ['cover','host-login','client-login','client-pin','host-dashboard','add-client','bulk-add','client-detail','client-view'];
+function goTo(name){
+  screens.forEach(s => document.getElementById('screen-'+s).classList.add('hidden'));
+  document.getElementById('screen-'+name).classList.remove('hidden');
+  document.getElementById('page-root').scrollTop = 0;
+  if(name === 'host-login') refreshHostLoginScreen();
+  if(name === 'host-dashboard'){ switchHostTab('home'); }
+  if(name === 'client-login'){ document.getElementById('client-search-input').value=''; document.getElementById('client-login-results').innerHTML=''; }
+  if(name === 'client-view'){ switchClientTab('home'); }
+}
+function closeModal(id){
+  document.getElementById(id).classList.add('hidden');
+  if(otpTimerHandle){ clearInterval(otpTimerHandle); otpTimerHandle = null; }
+}
+function logout(){ session = {role:null, clientId:null}; goTo('cover'); }
+function openFabSheet(){ document.getElementById('modal-fab').classList.remove('hidden'); }
+
+function switchHostTab(tab){
+  activeHostTab = tab;
+  ['home','activity','settings'].forEach(t => document.getElementById('host-panel-'+t).classList.toggle('hidden', t !== tab));
+  document.querySelectorAll('#screen-host-dashboard .bottom-nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.getElementById('host-tab-title').textContent = tab==='home' ? 'Overview' : tab==='activity' ? 'Activity Log' : 'Settings';
+  if(tab === 'home') renderDashboard();
+  if(tab === 'activity') renderAuditLog();
+  if(tab === 'settings') renderSettingsTab();
+}
+function switchClientTab(tab){
+  activeClientTab = tab;
+  ['home','statement','profile'].forEach(t => document.getElementById('client-panel-'+t).classList.toggle('hidden', t !== tab));
+  document.querySelectorAll('#screen-client-view .bottom-nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.getElementById('client-tab-title').textContent = tab==='home' ? 'Home' : tab==='statement' ? 'Statement' : 'Profile';
+  if(tab === 'home') renderClientView();
+  if(tab === 'statement') renderStatement();
+  if(tab === 'profile') renderProfile();
+}
+function setStatementFilter(range){
+  statementFilter = range;
+  document.querySelectorAll('.filter-chips .chip').forEach(c => c.classList.toggle('active', c.dataset.range === range));
+  renderStatement();
+}
+
+/* ================= HOST LOGIN / SETUP ================= */
+async function refreshHostLoginScreen(){
+  const errEl = document.getElementById('host-login-err'); errEl.classList.add('hidden');
+  document.getElementById('host-pw-input').value = '';
+  document.getElementById('host-pw-confirm-input').value = '';
+  try{
+    const status = await api('/host/status');
+    HOST_EXISTS = status.exists; HOST_INFO = status;
+  }catch(e){ HOST_EXISTS = false; }
+  const setupFields = document.getElementById('host-setup-fields');
+  const confirmField = document.getElementById('host-setup-confirm-field');
+  const title = document.getElementById('host-login-title');
+  const sub = document.getElementById('host-login-sub');
+  const btn = document.getElementById('host-login-submit-btn');
+  if(!HOST_EXISTS){
+    setupFields.classList.remove('hidden');
+    confirmField.classList.remove('hidden');
+    title.textContent = 'Set Up Host Console';
+    sub.textContent = "Created once — you'll use this same password every time after this.";
+    btn.textContent = 'Create Host Account';
+    document.getElementById('host-setup-name').value = '';
+    document.getElementById('host-setup-phone').value = '';
+    resetAvatarPreview('host-setup-avatar-preview', 'L');
+  } else {
+    setupFields.classList.add('hidden');
+    confirmField.classList.add('hidden');
+    title.textContent = 'Host Login';
+    sub.textContent = HOST_INFO.name ? `Welcome back, ${HOST_INFO.name}.` : 'Enter your ledger password.';
+    btn.textContent = 'Enter Console';
+  }
+}
+async function submitHostLogin(){
+  const errEl = document.getElementById('host-login-err'); errEl.classList.add('hidden');
+  const pw = document.getElementById('host-pw-input').value;
+  try{
+    if(!HOST_EXISTS){
+      const confirmPw = document.getElementById('host-pw-confirm-input').value;
+      const name = document.getElementById('host-setup-name').value.trim();
+      const phone = document.getElementById('host-setup-phone').value.trim();
+      const photo = getPickedPhoto('host-setup-avatar-preview');
+      if(!name) throw new Error('Enter your name.');
+      if(!pw || pw.length < 4) throw new Error('Password must be at least 4 characters.');
+      if(pw !== confirmPw) throw new Error('Passwords do not match.');
+      await api('/host/setup', 'POST', { password: pw, confirmPassword: confirmPw, name, phone, photo });
+    } else {
+      await api('/host/login', 'POST', { password: pw });
+    }
+    session = { role:'host', clientId:null };
+    goTo('host-dashboard');
+  }catch(e){ errEl.textContent = e.message; errEl.classList.remove('hidden'); }
+}
+
+/* ================= HOST DASHBOARD — HOME ================= */
+async function renderDashboard(){
+  try{
+    const stats = await api('/stats');
+    document.getElementById('stat-clients').textContent = stats.totalClients;
+    document.getElementById('stat-total').textContent = fmtMoney(stats.totalHeld);
+    document.getElementById('stat-due').textContent = stats.dueThisMonth;
+  }catch(e){ /* stats are a bonus; client list still loads */ }
+  renderClientList();
+}
+function renderClientList(){ clearTimeout(hostSearchTimer); hostSearchTimer = setTimeout(doRenderClientList, 180); }
+async function doRenderClientList(){
+  const q = document.getElementById('host-search').value || '';
+  const list = document.getElementById('client-list');
+  try{
+    const clients = await api('/clients?q=' + encodeURIComponent(q));
+    list.innerHTML = clients.length ? clients.map(clientCardHtml).join('') : emptyStateHtml('No clients match your search yet.');
+  }catch(e){ list.innerHTML = emptyStateHtml('Could not reach the server. Check your connection.'); }
+}
+function clientCardHtml(c){
+  return `<div class="client-card" onclick="openClientDetail('${c.id}')">
+    <div class="avatar" style="${avatarBg(c.photo)}">${c.photo?'':initials(c.name)}</div>
+    <div class="cbody"><div class="cname">${escapeHtml(c.name)}</div><div class="cid">${c.uniqueId} · ${c.phone}</div></div>
+    <div class="cright"><div class="cbal">${fmtMoney(c.balance)}</div><span class="pill ${c.paidThisMonth?'paid':'due'}">${c.paidThisMonth?'PAID':'DUE'}</span></div>
+  </div>`;
+}
+
+/* ================= HOST DASHBOARD — ACTIVITY ================= */
+async function renderAuditLog(){
+  const listEl = document.getElementById('audit-list');
+  const labelMap = {
+    deposit:'Deposit Recorded', withdrawal_approved:'Withdrawal Approved', withdrawal_rejected:'Withdrawal Rejected',
+    otp_sent:'OTP Sent', client_added:'Client Added', bulk_add:'Bulk Import', host_login:'Host Login',
+    host_setup:'Host Account Created', host_password_changed:'Password Changed', host_profile_updated:'Profile Updated', client_login:'Client Login'
+  };
+  try{
+    const items = await api('/audit');
+    listEl.innerHTML = items.length ? items.map(a => `<div class="audit-item">
+        <div class="aicon2">${ICON_LOG}</div>
+        <div class="abody"><div class="aaction">${labelMap[a.action] || a.action}</div><div class="adetail">${escapeHtml(a.details||'')}</div><div class="ats">${fmtDateTime(a.ts)}</div></div>
+      </div>`).join('') : emptyStateHtml('No activity recorded yet.');
+  }catch(e){ listEl.innerHTML = emptyStateHtml('Could not load activity.'); }
+}
+
+/* ================= HOST DASHBOARD — SETTINGS ================= */
+async function renderSettingsTab(){
+  try{
+    const stats = await api('/stats');
+    const modules = [
+      {name:'Client Registry', sub: stats.totalClients + ' records', icon: ICON_USER},
+      {name:'Deposits', sub: stats.depositCount + ' entries', icon: ICON_DEPOSIT},
+      {name:'Withdrawals + OTP', sub: stats.withdrawalCount + ' approved', icon: ICON_WITHDRAW},
+      {name:'Audit Log', sub: stats.auditCount + ' events', icon: ICON_LOG},
+    ];
+    document.getElementById('module-list').innerHTML = modules.map(m => `<div class="module-row">
+        <div class="micon">${m.icon}</div><div class="mtext"><div class="mtitle">${m.name}</div><div class="msub">${m.sub}</div></div><div class="mstatus">ACTIVE</div>
+      </div>`).join('');
+  }catch(e){}
+  try{
+    const status = await api('/host/status');
+    HOST_INFO = status;
+    document.getElementById('host-settings-name').textContent = status.name || 'Host';
+    document.getElementById('host-settings-phone').textContent = status.phone || '—';
+    setAvatarDisplay(document.getElementById('host-settings-avatar'), status.photo, status.name || 'H');
+  }catch(e){}
+}
+function openHostProfileSheet(){
+  document.getElementById('hp-name-input').value = HOST_INFO.name || '';
+  document.getElementById('hp-phone-input').value = HOST_INFO.phone || '';
+  const prev = document.getElementById('hp-avatar-preview');
+  setAvatarDisplay(prev, HOST_INFO.photo, HOST_INFO.name || 'H');
+  delete prev.dataset.photo;
+  document.getElementById('hp-err').classList.add('hidden');
+  document.getElementById('modal-host-profile').classList.remove('hidden');
+}
+async function submitHostProfile(){
+  const errEl = document.getElementById('hp-err'); errEl.classList.add('hidden');
+  const name = document.getElementById('hp-name-input').value.trim();
+  const phone = document.getElementById('hp-phone-input').value.trim();
+  const photo = getPickedPhoto('hp-avatar-preview');
+  try{
+    await api('/host/profile', 'PUT', { name, phone, photo });
+    closeModal('modal-host-profile');
+    renderSettingsTab();
+  }catch(e){ errEl.textContent = e.message; errEl.classList.remove('hidden'); }
+}
+function openChangePasswordSheet(){
+  ['cp-old-input','cp-new-input','cp-confirm-input'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('cp-err').classList.add('hidden');
+  document.getElementById('cp-msg').classList.add('hidden');
+  document.getElementById('modal-change-password').classList.remove('hidden');
+}
+async function submitChangePassword(){
+  const errEl = document.getElementById('cp-err'); const msgEl = document.getElementById('cp-msg');
+  errEl.classList.add('hidden'); msgEl.classList.add('hidden');
+  const oldPassword = document.getElementById('cp-old-input').value;
+  const newPassword = document.getElementById('cp-new-input').value;
+  const confirmPassword = document.getElementById('cp-confirm-input').value;
+  try{
+    await api('/host/change-password', 'POST', { oldPassword, newPassword, confirmPassword });
+    msgEl.textContent = 'Password updated.'; msgEl.classList.remove('hidden');
+    setTimeout(()=> closeModal('modal-change-password'), 900);
+  }catch(e){ errEl.textContent = e.message; errEl.classList.remove('hidden'); }
+}
+
+/* ================= ADD CLIENT ================= */
+function openAddClient(){
+  document.getElementById('new-client-name').value = '';
+  document.getElementById('new-client-phone').value = '';
+  document.getElementById('new-client-target').value = '';
+  resetAvatarPreview('new-client-avatar-preview', '+');
+  document.getElementById('add-client-err').classList.add('hidden');
+  goTo('add-client');
+}
+async function submitAddClient(){
+  const name = document.getElementById('new-client-name').value.trim();
+  const phone = document.getElementById('new-client-phone').value.trim();
+  const target = document.getElementById('new-client-target').value.trim();
+  const photo = getPickedPhoto('new-client-avatar-preview');
+  const errEl = document.getElementById('add-client-err'); errEl.classList.add('hidden');
+  try{
+    await api('/clients', 'POST', { name, phone, target: target ? Number(target) : null, photo });
+    goTo('host-dashboard');
+  }catch(e){ errEl.textContent = e.message; errEl.classList.remove('hidden'); }
+}
+
+/* ================= BULK ADD ================= */
+function openBulkAdd(){
+  document.getElementById('bulk-add-text').value = '';
+  document.getElementById('bulk-add-err').classList.add('hidden');
+  document.getElementById('bulk-add-msg').classList.add('hidden');
+  goTo('bulk-add');
+}
+async function submitBulkAdd(){
+  const raw = document.getElementById('bulk-add-text').value;
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean).map(line => {
+    const parts = line.split(','); return { name: (parts[0]||'').trim(), phone: (parts[1]||'').trim() };
+  });
+  const errEl = document.getElementById('bulk-add-err'); const msgEl = document.getElementById('bulk-add-msg');
+  errEl.classList.add('hidden'); msgEl.classList.add('hidden');
+  if(lines.length === 0){ errEl.textContent = 'Paste at least one line.'; errEl.classList.remove('hidden'); return; }
+  try{
+    const result = await api('/clients/bulk', 'POST', { lines });
+    msgEl.textContent = `Added ${result.added} client(s).${result.skipped ? ' Skipped ' + result.skipped + ' invalid line(s).' : ''}`;
+    msgEl.classList.remove('hidden');
+  }catch(e){ errEl.textContent = e.message; errEl.classList.remove('hidden'); }
+}
+
+/* ================= CLIENT DETAIL (HOST VIEW) ================= */
+function openClientDetail(id){ selectedDetailClientId = id; goTo('client-detail'); loadClientDetail(); }
+function txRowHtml(t){
+  return `<div class="tx-item ${t.type}">
+      <div class="tx-icon">${t.type==='deposit'?ICON_DEPOSIT:ICON_WITHDRAW}</div>
+      <div class="tbody"><div class="ttype">${t.type==='deposit'?'Deposit':'Withdrawal'}</div><div class="tdate">${fmtDate(t.date)}${t.note?' · '+escapeHtml(t.note):''}</div></div>
+      <div class="tright"><div class="tamt">${t.type==='deposit'?'+':'−'}${fmtMoney(t.amount)}</div><div class="trun">Bal: ${fmtMoney(t.runningBalance)}</div></div>
+    </div>`;
+}
+async function loadClientDetail(){
+  try{
+    const c = await api('/clients/' + selectedDetailClientId);
+    document.getElementById('detail-id').textContent = c.uniqueId;
+    document.getElementById('detail-name').textContent = c.name;
+    document.getElementById('detail-phone').textContent = c.phone;
+    document.getElementById('detail-balance').textContent = fmtMoney(c.balance);
+    setAvatarDisplay(document.getElementById('detail-avatar'), c.photo, c.name);
+    const txs = await api('/clients/' + selectedDetailClientId + '/transactions?range=all');
+    document.getElementById('detail-tx-list').innerHTML = txs.length ? txs.map(txRowHtml).join('') : emptyStateHtml('No transactions yet.');
+  }catch(e){}
+}
+function onClientPhotoPicked(input){
+  const file = input.files[0]; if(!file) return;
+  compressImage(file).then(async (dataUrl) => {
+    try{ await api('/clients/' + selectedDetailClientId + '/photo', 'PUT', { photo: dataUrl }); loadClientDetail(); }catch(e){}
+  });
+}
+
+/* ================= DEPOSIT ================= */
+function openDeposit(){
+  document.getElementById('deposit-client-name').textContent = document.getElementById('detail-name').textContent + ' — ' + document.getElementById('detail-id').textContent;
+  document.getElementById('deposit-amount').value = '';
+  document.getElementById('deposit-date').value = todayISO();
+  document.getElementById('deposit-note').value = '';
+  document.getElementById('deposit-err').classList.add('hidden');
+  document.getElementById('modal-deposit').classList.remove('hidden');
+}
+async function submitDeposit(){
+  const amt = Number(document.getElementById('deposit-amount').value);
+  const date = document.getElementById('deposit-date').value || todayISO();
+  const note = document.getElementById('deposit-note').value.trim();
+  const errEl = document.getElementById('deposit-err'); errEl.classList.add('hidden');
+  try{
+    await api('/clients/' + selectedDetailClientId + '/deposit', 'POST', { amount: amt, date, note });
+    closeModal('modal-deposit');
+    loadClientDetail();
+  }catch(e){ errEl.textContent = e.message; errEl.classList.remove('hidden'); }
+}
+
+/* ================= WITHDRAWAL + OTP ================= */
+function openWithdraw(){
+  document.getElementById('withdraw-client-name').textContent = document.getElementById('detail-name').textContent + ' — ' + document.getElementById('detail-id').textContent + ' · Balance: ' + document.getElementById('detail-balance').textContent;
+  document.getElementById('withdraw-amount').value = '';
+  document.getElementById('withdraw-err').classList.add('hidden');
+  document.getElementById('withdraw-step-amount').classList.remove('hidden');
+  document.getElementById('withdraw-step-otp').classList.add('hidden');
+  document.getElementById('modal-withdraw').classList.remove('hidden');
+}
+async function sendOtp(){
+  const amt = Number(document.getElementById('withdraw-amount').value);
+  const errEl = document.getElementById('withdraw-err'); errEl.classList.add('hidden');
+  try{
+    const result = await api('/clients/' + selectedDetailClientId + '/withdraw/request', 'POST', { amount: amt });
+    pendingExpiresAt = result.expiresAt;
+    document.getElementById('withdraw-step-amount').classList.add('hidden');
+    document.getElementById('withdraw-step-otp').classList.remove('hidden');
+    document.getElementById('withdraw-otp-amount').textContent = fmtMoney(amt);
+    document.getElementById('withdraw-sms-banner').innerHTML =
+      `SMS sent to ${result.phoneMasked} —<br>"Your withdrawal code is <b>${result.demoCode}</b>. Share this only with the ledger holder to approve."<br><br><em>Demo note: shown here in place of a real SMS gateway.</em>`;
+    document.getElementById('withdraw-otp-input').value = '';
+    document.getElementById('withdraw-otp-result').innerHTML = '';
+    document.getElementById('withdraw-otp-actions').classList.remove('hidden');
+    startOtpTimer();
+  }catch(e){ errEl.textContent = e.message; errEl.classList.remove('hidden'); }
+}
+function startOtpTimer(){
+  if(otpTimerHandle) clearInterval(otpTimerHandle);
+  otpTimerHandle = setInterval(()=>{
+    const remaining = Math.max(0, pendingExpiresAt - Date.now());
+    const mins = Math.floor(remaining/60000), secs = Math.floor((remaining%60000)/1000);
+    const t = document.getElementById('withdraw-otp-timer');
+    if(t) t.textContent = remaining > 0 ? `Code expires in ${mins}:${String(secs).padStart(2,'0')}` : 'Code expired.';
+    if(remaining <= 0) clearInterval(otpTimerHandle);
+  }, 1000);
+}
+async function verifyOtp(){
+  const entered = document.getElementById('withdraw-otp-input').value.trim();
+  const resultEl = document.getElementById('withdraw-otp-result');
+  try{
+    await api('/clients/' + selectedDetailClientId + '/withdraw/verify', 'POST', { code: entered });
+    resultEl.innerHTML = `<div class="stamp-result ok">VERIFIED</div>`;
+    document.getElementById('withdraw-otp-actions').classList.add('hidden');
+    clearInterval(otpTimerHandle);
+    setTimeout(()=>{ closeModal('modal-withdraw'); loadClientDetail(); }, 900);
+  }catch(e){
+    const label = (e.data && e.data.error === 'expired') ? 'EXPIRED' : 'REJECTED';
+    resultEl.innerHTML = `<div class="stamp-result bad">${label}</div>`;
+    if(label === 'EXPIRED'){ document.getElementById('withdraw-otp-actions').classList.add('hidden'); clearInterval(otpTimerHandle); }
+  }
+}
+
+/* ================= CLIENT LOGIN ================= */
+function renderClientLoginResults(){ clearTimeout(clientSearchTimer); clientSearchTimer = setTimeout(doRenderClientLoginResults, 180); }
+async function doRenderClientLoginResults(){
+  const q = document.getElementById('client-search-input').value || '';
+  const resultsEl = document.getElementById('client-login-results');
+  if(!q.trim()){ resultsEl.innerHTML = ''; return; }
+  try{
+    const matches = await api('/client-search?q=' + encodeURIComponent(q));
+    resultsEl.innerHTML = matches.length ? matches.map(c => `<div class="client-card" onclick="chooseLoginClient('${c.id}', '${escapeHtml(c.name).replace(/'/g,"\\'")}')">
+        <div class="avatar" style="${avatarBg(c.photo)}">${c.photo?'':initials(c.name)}</div>
+        <div class="cbody"><div class="cname">${escapeHtml(c.name)}</div><div class="cid">${c.uniqueId}</div></div>
+      </div>`).join('') : emptyStateHtml('No match found.');
+  }catch(e){ resultsEl.innerHTML = emptyStateHtml('Search failed — check your connection.'); }
+}
+function chooseLoginClient(id, name){
+  pendingLoginClientId = id;
+  document.getElementById('client-pin-sub').textContent = `Confirming access for ${name}.`;
+  document.getElementById('client-pin-input').value = '';
+  document.getElementById('client-pin-err').classList.add('hidden');
+  goTo('client-pin');
+}
+async function submitClientPin(){
+  const entered = document.getElementById('client-pin-input').value.trim();
+  const errEl = document.getElementById('client-pin-err'); errEl.classList.add('hidden');
+  try{
+    const profile = await api('/client-login', 'POST', { clientId: pendingLoginClientId, last4: entered });
+    session = { role:'client', clientId: profile.id };
+    goTo('client-view');
+  }catch(e){ errEl.textContent = e.message; errEl.classList.remove('hidden'); }
+}
+
+/* ================= CLIENT VIEW ================= */
+async function renderClientView(){
+  try{
+    const c = await api('/clients/' + session.clientId);
+    document.getElementById('cv-id').textContent = c.uniqueId;
+    document.getElementById('cv-name').textContent = c.name;
+    document.getElementById('cv-phone').textContent = c.phone;
+    document.getElementById('cv-balance').textContent = fmtMoney(c.balance);
+    const txs = await api('/clients/' + session.clientId + '/transactions?range=all');
+    const recent = txs.slice(0,5);
+    document.getElementById('cv-recent-list').innerHTML = recent.length ? recent.map(txRowHtml).join('') : emptyStateHtml('No transactions yet. Your host will record your first deposit here.');
+  }catch(e){}
+}
+async function renderStatement(){
+  const listEl = document.getElementById('cv-tx-list');
+  try{
+    const txs = await api('/clients/' + session.clientId + '/transactions?range=' + statementFilter);
+    listEl.innerHTML = txs.length ? txs.map(txRowHtml).join('') : emptyStateHtml('No transactions in this range.');
+  }catch(e){ listEl.innerHTML = emptyStateHtml('Could not load statement.'); }
+}
+async function renderProfile(){
+  try{
+    const c = await api('/clients/' + session.clientId);
+    document.getElementById('pf-name').textContent = c.name;
+    document.getElementById('pf-id').textContent = c.uniqueId;
+    document.getElementById('pf-phone').textContent = c.phone;
+    document.getElementById('pf-since').textContent = fmtDate(c.joinDate);
+    setAvatarDisplay(document.getElementById('pf-avatar'), c.photo, c.name);
+  }catch(e){}
+}
+function onOwnPhotoPicked(input){
+  const file = input.files[0]; if(!file) return;
+  compressImage(file).then(async (dataUrl) => {
+    try{ await api('/clients/' + session.clientId + '/photo', 'PUT', { photo: dataUrl }); renderProfile(); }catch(e){}
+  });
+}
+
+/* ================= PWA: SERVICE WORKER + INSTALL PROMPT ================= */
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(()=>{});
+  });
+}
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  const btn = document.getElementById('install-app-btn');
+  if(btn) btn.classList.remove('hidden');
+});
+function promptInstall(){
+  if(!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  deferredInstallPrompt.userChoice.finally(()=>{ deferredInstallPrompt = null; const btn = document.getElementById('install-app-btn'); if(btn) btn.classList.add('hidden'); });
+}
+
+/* ================= CLOCK ================= */
+function tickClock(){
+  const el = document.getElementById('clock');
+  if(el) el.textContent = new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true}).replace(' ','');
+}
+setInterval(tickClock, 30000); tickClock();
+
+/* ================= INIT ================= */
+(async function init(){
+  try{ const status = await api('/host/status'); HOST_EXISTS = status.exists; HOST_INFO = status; }catch(e){ HOST_EXISTS = false; }
+  goTo('cover');
+})();
+
+</script>
+</body>
+</html>

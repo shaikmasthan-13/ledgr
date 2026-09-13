@@ -1,0 +1,16 @@
+{
+  "name": "ledgr-server",
+  "version": "1.0.0",
+  "description": "Ledgr backend — real database + API + the app itself, all in one server.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "express": "^4.19.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
